@@ -40,3 +40,11 @@ Users must be able to remove tasks from the list.
 
 - A user can delete any existing task.
 - The task is removed from the task list immediately upon deletion.
+
+### FR-6: Add a Description to Tasks
+
+Users must be able to add an optional description to a task.
+
+- A user can enter or update a multi-line description on any task.
+- The description is displayed beneath the task title when viewing the task.
+- The description field is optional — tasks without a description display only their title.

@@ -56,3 +56,4 @@ This document outlines the UI guidelines for the task management application. Al
 - Use `border-radius: 10px` for inputs and action buttons; `border-radius: 12px` for task item cards; `border-radius: 16px` for section panels.
 - Section headings use `uppercase` text with `0.06em` letter-spacing and the primary accent colour to create clear visual hierarchy.
 - Form fields and their labels are grouped vertically with a small gap (`4–5px`); label text is uppercase, small (`0.78rem`), and muted (`#888`).
+- Every input field must have a visible label that clearly describes its purpose (e.g., "Task name", "Description", "Due date"). Labels must never be hidden or replaced by placeholder text alone.
