@@ -8,6 +8,19 @@ afterAll(() => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Health check
+// ---------------------------------------------------------------------------
+
+describe('GET / (health check)', () => {
+  it('should return ok status', async () => {
+    const response = await request(app).get('/');
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveProperty('status', 'ok');
+    expect(response.body).toHaveProperty('message');
+  });
+});
+
 // Test helpers
 const createItem = async (fields = {}) => {
   const body = { name: 'Test Item', ...fields };
@@ -167,6 +180,37 @@ describe('API Endpoints', () => {
       expect(response.body.due_date).toBeNull();
     });
 
+    it('should return 400 for a non-numeric item id', async () => {
+      const response = await request(app)
+        .put('/api/items/not-a-number')
+        .send({ name: 'Test' });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should return 400 if description is not a string or null', async () => {
+      const item = await createItem({ name: 'Task' });
+
+      const response = await request(app)
+        .put(`/api/items/${item.id}`)
+        .send({ description: 123 });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should return 400 if due_date is not a string or null', async () => {
+      const item = await createItem({ name: 'Task' });
+
+      const response = await request(app)
+        .put(`/api/items/${item.id}`)
+        .send({ due_date: true });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+
     it('should return 404 if item does not exist', async () => {
       const response = await request(app)
         .put('/api/items/999999')
@@ -240,6 +284,15 @@ describe('API Endpoints', () => {
       expect(response.body).toHaveProperty('error', 'direction must be "up" or "down"');
     });
 
+    it('should return 400 for a non-numeric item id', async () => {
+      const response = await request(app)
+        .patch('/api/items/not-a-number/position')
+        .send({ direction: 'up' });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toHaveProperty('error');
+    });
+
     it('should return 404 if item does not exist', async () => {
       const response = await request(app)
         .patch('/api/items/999999/position')
@@ -273,6 +326,72 @@ describe('API Endpoints', () => {
       const response = await request(app).delete('/api/items/abc');
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('error', 'Valid item ID is required');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Database error handling (covers catch blocks in each route handler)
+  // -------------------------------------------------------------------------
+
+  describe('Database error handling', () => {
+    it('should return 500 when GET /api/items encounters a database error', async () => {
+      const spy = jest.spyOn(db, 'prepare').mockImplementationOnce(() => {
+        throw new Error('DB error');
+      });
+      const response = await request(app).get('/api/items');
+      spy.mockRestore();
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should return 500 when POST /api/items encounters a database error', async () => {
+      const spy = jest.spyOn(db, 'prepare').mockImplementationOnce(() => {
+        throw new Error('DB error');
+      });
+      const response = await request(app)
+        .post('/api/items')
+        .send({ name: 'Error Task' });
+      spy.mockRestore();
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should return 500 when PUT /api/items/:id encounters a database error', async () => {
+      const item = await createItem({ name: 'Task' });
+      const spy = jest.spyOn(db, 'prepare').mockImplementationOnce(() => {
+        throw new Error('DB error');
+      });
+      const response = await request(app)
+        .put(`/api/items/${item.id}`)
+        .send({ name: 'Updated' });
+      spy.mockRestore();
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should return 500 when PATCH /api/items/:id/position encounters a database error', async () => {
+      const item = await createItem({ name: 'Task' });
+      const second = await createItem({ name: 'Task 2' });
+      const spy = jest.spyOn(db, 'prepare').mockImplementationOnce(() => {
+        throw new Error('DB error');
+      });
+      const response = await request(app)
+        .patch(`/api/items/${second.id}/position`)
+        .send({ direction: 'up' });
+      spy.mockRestore();
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
+    });
+
+    it('should return 500 when DELETE /api/items/:id encounters a database error', async () => {
+      const item = await createItem({ name: 'Task' });
+      const spy = jest.spyOn(db, 'prepare').mockImplementationOnce(() => {
+        throw new Error('DB error');
+      });
+      const response = await request(app).delete(`/api/items/${item.id}`);
+      spy.mockRestore();
+      expect(response.status).toBe(500);
+      expect(response.body).toHaveProperty('error');
     });
   });
 });

@@ -201,4 +201,92 @@ describe('App Component', () => {
       expect(screen.getByText(/failed to fetch tasks/i)).toBeInTheDocument();
     });
   });
+
+  test('moves a task using the reorder button', async () => {
+    const user = userEvent.setup();
+    await act(async () => { render(<App />); });
+    await waitFor(() => expect(screen.getByText('Task One')).toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: /move "task one" down/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Task One')).toBeInTheDocument();
+      expect(screen.getByText('Task Two')).toBeInTheDocument();
+    });
+  });
+
+  test('shows error when adding a task fails', async () => {
+    server.use(rest.post('/api/items', (req, res, ctx) => res(ctx.status(500))));
+
+    const user = userEvent.setup();
+    await act(async () => { render(<App />); });
+    await waitFor(() => expect(screen.queryByText('Loading tasks...')).not.toBeInTheDocument());
+
+    await user.type(screen.getByLabelText(/task name/i), 'Fail Task');
+    await user.click(screen.getByRole('button', { name: /add task/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/error adding task/i)).toBeInTheDocument();
+    });
+  });
+
+  test('shows error when updating a task fails', async () => {
+    server.use(rest.put('/api/items/:id', (req, res, ctx) => res(ctx.status(500))));
+
+    const user = userEvent.setup();
+    await act(async () => { render(<App />); });
+    await waitFor(() => expect(screen.getByText('Task One')).toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: /edit "task one"/i }));
+    await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/error updating task/i)).toBeInTheDocument();
+    });
+  });
+
+  test('shows error when deleting a task fails', async () => {
+    server.use(rest.delete('/api/items/:id', (req, res, ctx) => res(ctx.status(500))));
+
+    const user = userEvent.setup();
+    await act(async () => { render(<App />); });
+    await waitFor(() => expect(screen.getByText('Task One')).toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: /delete "task one"/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/error deleting task/i)).toBeInTheDocument();
+    });
+  });
+
+  test('shows error when reordering a task fails', async () => {
+    server.use(rest.patch('/api/items/:id/position', (req, res, ctx) => res(ctx.status(500))));
+
+    const user = userEvent.setup();
+    await act(async () => { render(<App />); });
+    await waitFor(() => expect(screen.getByText('Task One')).toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: /move "task one" down/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/error reordering task/i)).toBeInTheDocument();
+    });
+  });
+
+  test('pressing Escape cancels edit and restores the original name', async () => {
+    const user = userEvent.setup();
+    await act(async () => { render(<App />); });
+    await waitFor(() => expect(screen.getByText('Task One')).toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: /edit "task one"/i }));
+    const nameInput = screen.getByDisplayValue('Task One');
+    await user.clear(nameInput);
+    await user.type(nameInput, 'Should Be Discarded');
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => {
+      expect(screen.getByText('Task One')).toBeInTheDocument();
+    });
+    expect(screen.queryByRole('button', { name: /save changes/i })).not.toBeInTheDocument();
+  });
 });
